@@ -2,7 +2,11 @@ object Implementation {
 
   var varCounter = 0
 
-  class Var(varName: String) {
+  trait Term
+  case class Lit(v: String) extends Term
+  case object Null extends Term
+  case class Pair(left: Term, right: Term) extends Term
+  case class Var(varName: String) extends Term {
     var name: String = varName
     val id: Int = varCounter
     varCounter += 1
@@ -15,7 +19,7 @@ object Implementation {
   }
 
   trait Stream[+T] {
-    def map(f: T => Any): List[Any] = {
+    def map[B](f: T => B): List[B] = {
       this match {
         case Cons(fst, rst) => f(fst()) :: rst().map(f)
         case Empty => Nil
@@ -60,7 +64,7 @@ object Implementation {
     }
   }
 
-  type Subst = Map[Var, Any]
+  type Subst = Map[Var, Term]
   type Goal = Subst => Stream[Subst]
 
   def succeed: Goal = {
@@ -73,45 +77,43 @@ object Implementation {
 
   def isVar(myVar: Any): Boolean = myVar.isInstanceOf[Var]
 
-  def walk(v: Any, s: Subst): Any =
+  def walk(v: Term, s: Subst): Term =
     if (isVar(v)) {
       s.get(v.asInstanceOf[Var]) match {
-        case Some(x) => walk(x, s)
+        case Some(t) => walk(t, s)
         case None => v
       }
     } else v
 
-  def occurs(x: Var, v: Any, s: Subst): Boolean = {
-    val walked = walk(v, s)
-    if (isVar(walked)) x.equals(walked)
-    else walked match {
-      case v :: vs => occurs(x, v, s) || occurs(x, vs, s)
+  def occurs(x: Var, v: Term, s: Subst): Boolean = {
+    walk(v, s) match {
+      case v: Var => v.equals(x)
+      case Pair(l, r) => occurs(x, l, s) || occurs(x, r, s)
       case _ => false
     }
   }
 
-  def ext_s(x: Var, v: Any, s: Subst): Option[Subst] = {
+  def ext_s(x: Var, v: Term, s: Subst): Option[Subst] = {
     if (occurs(x, v, s)) None
     else Some(s + (x -> v))
   }
 
-  def unify(u: Any, v: Any, s: Subst): Option[Subst] = {
+  def unify(u: Term, v: Term, s: Subst): Option[Subst] = {
     val uWalked = walk(u, s)
     val vWalked = walk(v, s)
     if (uWalked.equals(vWalked)) Some(s)
-    else if (isVar(uWalked)) ext_s(uWalked.asInstanceOf[Var], vWalked, s)
-    else if (isVar(vWalked)) ext_s(vWalked.asInstanceOf[Var], uWalked, s)
     else (uWalked, vWalked) match {
-      case (u :: us, v :: vs) =>
-        unify(u, v, s) match {
-          case Some(s) => unify(us, vs, s)
-          case None => None
-        }
+      case (u: Var, v: Term) => ext_s(u, v, s)
+      case (u: Term, v: Var) => ext_s(v, u, s)
+      case (Pair(ul, ur), Pair(vl, vr)) => unify(ul, vl, s) match {
+        case Some(s) => unify(ur, vr, s)
+        case None => None
+      }
       case _ => None
     }
   }
 
-  def ==(u: Any, v: Any): Goal = {
+  def ==(u: Term, v: Term): Goal = {
     s: Subst => unify(u, v, s) match {
       case Some(unified) => succeed(unified)
       case None => fail(s)
@@ -166,32 +168,25 @@ object Implementation {
     "_" + n.toString
   }
 
-  def walk_star(v: Any, s: Subst): Any = {
+  def walk_star(v: Term, s: Subst): Term = {
     val walked = walk(v, s)
-    if (isVar(walked)) walked
-    else walked match {
-      case v :: vs =>
-        val walk_v = walk_star(v, s)
-        val walk_vs = walk_star(vs, s)
-        walk_vs match {
-          case l: List[Any] => walk_v :: l
-          case v: Any => List(walk_v, v)
-        }
+    walked match {
+      case v: Var => v
+      case Pair(l, r) => Pair(walk_star(l, s), walk_star(r, s))
       case _ => walked
     }
   }
 
-  def reify_s(v: Any, r: Subst = Map()): Subst = {
+  def reify_s(v: Term, r: Subst = Map()): Subst = {
     val walked = walk(v, r)
-    if (isVar(walked)) r + (walked.asInstanceOf[Var] -> reify_name(r.size))
-    else walked match {
-      case Nil => r
-      case v :: vs => reify_s(vs, reify_s(v, r))
+    walked match {
+      case v: Var => r + (v -> Lit(reify_name(r.size)))
+      case Pair(left, right) => reify_s(right, reify_s(left, r))
       case _ => r
     }
   }
 
-  def reify(v: Any): Subst => Any = {
+  def reify(v: Term): Subst => Term = {
     s: Subst => {
       val walked = walk_star(v, s)
       walk_star(walked, reify_s(walked))
@@ -251,15 +246,22 @@ object Implementation {
 
   def run(n: Int, q: Var, g: Goal*) : List[Any] = run(Some(n), q, g:_*)
 
-  def run(n: Option[Int], q: Var, g: Goal*): List[Any] = {
+  def run(n: Option[Int], q: Var, g: Goal*): List[Term] = {
     run_goal(n, conj(g:_*)).map(reify(q))
   }
 
   def run(n: Int, vars: List[Var], g: Goal*): List[Any] = run(Some(n), vars, g:_*)
 
   def run(n: Option[Int], vars: List[Var], g: Goal*): List[Any] = {
-    val q = new Var("q")
-    run(n, q, fresh(vars, ==(vars, q) +: g:_*))
+    val q = Var("q")
+    run(n, q, fresh(vars, ==(listToPair(vars), q) +: g:_*))
+  }
+
+  def listToPair(l: List[Var]): Pair = {
+    l match {
+      case v1 :: v2 :: Nil => Pair(v1, v2)
+      case v1 :: rst => Pair(v1, listToPair(rst))
+    }
   }
 
   def run_star(q: Var, g: Goal*): List[Any] = {
@@ -278,12 +280,47 @@ object Implementation {
     disj(res:_*)
   }
 
+
+  def conso[T](a: Term, d: Term, p: Term): Goal = {
+    ==(Pair(a, d), p)
+  }
+
+  def nullo(x: Term): Goal = {
+    ==(Null, x)
+  }
+
+  def appendo[T](l: Term, t: Term, out: Term): Goal = {
+    val a = Var("a")
+    val d = Var("d")
+    val res = Var("res")
+
+    conde(
+      List(nullo(l), ==(t, out)),
+      List(fresh(List(a, d, res),
+        conso(a, d, l),
+        appendo(d, t, res),
+        conso(a, res, out))))
+  }
+
   def main(args: Array[String]): Unit = {
-    val u = new Var("u")
-    val v = new Var("v")
-    val w = new Var("w")
-    val x = new Var("x")
-    val y = new Var("y")
-    val z = new Var("z")
+    val u = Var("u")
+    val v = Var("v")
+    val w = Var("w")
+    val x = Var("x")
+    val y = Var("y")
+    val z = Var("z")
+
+    run_star(x, fail)
+
+    lazy val ones: Stream[Int] = Stream.cons(1, ones)
+    lazy val twos: Stream[Int] = Stream.cons(2, twos)
+    lazy val res = append_inf(ones, twos)
+//    println(res.toString(5))
+
+//    lazy val abc = Stream.cons("a", Stream.cons("b", Stream.cons("c", Susp(() => Empty))))
+//    abc.toString
+
+//    println(run_star(u, appendo(Pair(Lit("1"), Pair(Lit("2"), Lit("3"))), Pair(Lit("4"), Pair(Lit("5"), Lit("6"))), u)))
+//    println(run(6, x, fresh(List(y, z), appendo(x, y, z))))
   }
 }
