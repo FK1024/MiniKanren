@@ -4,7 +4,7 @@ object Implementation {
 
   trait Term
   case class Lit(v: String) extends Term
-  case object Null extends Term
+  case object End extends Term
   case class Pair(left: Term, right: Term) extends Term
   case class Var(varName: String) extends Term {
     var name: String = varName
@@ -148,20 +148,20 @@ object Implementation {
 
   def take_inf(n: Option[Int], s_inf: Stream[Subst]): Stream[Subst] = {
     n match {
-      case None => return s_inf
+      case None => s_inf
       case Some(n) =>
-        if (n == 0) return Empty
+        if (n == 0) Empty
         else s_inf match {
-          case Empty => return Empty
-          case Cons(fst, rst) => return Stream.cons(fst(), take_inf(n - 1, rst()))
+          case Empty => Empty
+          case Cons(fst, rst) => Stream.cons(fst(), take_inf(n - 1, rst()))
+          case Susp(f) => take_inf(n, f())
         }
     }
-    take_inf(n, s_inf)
   }
 
   // Never used
   def call_fresh(name: String, f: Var => Goal): Goal = {
-    f(new Var(name))
+    f(Var(name))
   }
 
   def reify_name(n: Int): String = {
@@ -281,25 +281,32 @@ object Implementation {
   }
 
 
-  def conso[T](a: Term, d: Term, p: Term): Goal = {
-    ==(Pair(a, d), p)
+
+
+  def conso(a: Term, d: Term, p: Term): Goal = {
+    s: Subst => ==(Pair(a, d), p)(s)
   }
 
   def nullo(x: Term): Goal = {
-    ==(Null, x)
+    s: Subst => ==(End, x)(s)
   }
 
-  def appendo[T](l: Term, t: Term, out: Term): Goal = {
-    val a = Var("a")
-    val d = Var("d")
-    val res = Var("res")
+  def appendo(l: Term, t: Term, out: Term): Goal = {
+    s: Subst => {
+      val a = Var("a")
+      val d = Var("d")
+      val res = Var("res")
 
-    conde(
-      List(nullo(l), ==(t, out)),
-      List(fresh(List(a, d, res),
-        conso(a, d, l),
-        appendo(d, t, res),
-        conso(a, res, out))))
+      lazy val apdo = appendo(d, t, res)
+      lazy val result = conde(
+        List(nullo(l), ==(t, out)),
+        List(fresh(List(a, d, res),
+          conso(a, d, l),
+          apdo,
+          conso(a, res, out))))
+
+      result(s)
+    }
   }
 
   def main(args: Array[String]): Unit = {
@@ -310,7 +317,7 @@ object Implementation {
     val y = Var("y")
     val z = Var("z")
 
-    run_star(x, fail)
+//    run_star(x, fail)
 
     lazy val ones: Stream[Int] = Stream.cons(1, ones)
     lazy val twos: Stream[Int] = Stream.cons(2, twos)
@@ -320,7 +327,11 @@ object Implementation {
 //    lazy val abc = Stream.cons("a", Stream.cons("b", Stream.cons("c", Susp(() => Empty))))
 //    abc.toString
 
-//    println(run_star(u, appendo(Pair(Lit("1"), Pair(Lit("2"), Lit("3"))), Pair(Lit("4"), Pair(Lit("5"), Lit("6"))), u)))
+//    println(conso(x, y, Pair(Lit("a"), Pair(Lit("b"), Lit("c"))))(Map()))
+
+    println(run_star(u, appendo(Pair(Lit("1"), Pair(Lit("2"), Pair(Lit("3"), End))), Pair(Lit("4"), Pair(Lit("5"), Pair(Lit("6"), End))), u)))
+
+//    println(run_star(u, appendo(Lit("1"), Lit("2"), u)))
 //    println(run(6, x, fresh(List(y, z), appendo(x, y, z))))
   }
 }

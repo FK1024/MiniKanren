@@ -18,15 +18,15 @@ class ImplementationTest extends AnyFunSuite {
 
   test("occurs test") {
     assert(occurs(x, x, Map()))
-    assert(occurs(x, Pair(y, Null), Map(y -> x)))
+    assert(occurs(x, Pair(y, End), Map(y -> x)))
     assert(occurs(x, y, Map(y -> x)))
     assert(!occurs(x, z, Map(y -> x)))
     assert(occurs(x, Pair(y, z), Map(y -> Pair(x, z))))
   }
 
   test("extend substitution test") {
-    assert(ext_s(x, Pair(x, Null), Map()) === None)
-    assert(ext_s(x, Pair(y, Null), Map(y -> x)) === None)
+    assert(ext_s(x, Pair(x, End), Map()) === None)
+    assert(ext_s(x, Pair(y, End), Map(y -> x)) === None)
     assert(ext_s(y, z, Map(x -> y)) === Some(Map(x -> y, y -> z)))
   }
 
@@ -109,11 +109,11 @@ class ImplementationTest extends AnyFunSuite {
   }
 
   test("reify test") {
-    val a1 = Map(x -> Pair(u, Pair(w, Pair(y, Pair(z, Pair(Pair(Lit("ice"), Null), z))))))
+    val a1 = Map(x -> Pair(u, Pair(w, Pair(y, Pair(z, Pair(Pair(Lit("ice"), End), z))))))
     val a2 = Map(y -> Lit("corn"))
     val a3 = Map(w -> Pair(v, u))
     val s = a1 ++ a2 ++ a3
-    assert(reify(x)(s) === Pair(Lit("_0"), Pair(Pair(Lit("_1"), Lit("_0")), Pair(Lit("corn"), Pair(Lit("_2"), Pair(Pair(Lit("ice"), Null), Lit("_2")))))))
+    assert(reify(x)(s) === Pair(Lit("_0"), Pair(Pair(Lit("_1"), Lit("_0")), Pair(Lit("corn"), Pair(Lit("_2"), Pair(Pair(Lit("ice"), End), Lit("_2")))))))
   }
 
   test("ifte test") {
@@ -172,6 +172,6 @@ class ImplementationTest extends AnyFunSuite {
 
   test("nullo test") {
     assert(run_star(x, nullo(Pair(Lit("grape"), Pair(Lit("raisin"), Lit("pear"))))) === List())
-    assert(run_star(x, nullo(Null)) == List(Lit("_0")))
+    assert(run_star(x, nullo(End)) == List(Lit("_0")))
   }
 }
