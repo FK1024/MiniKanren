@@ -257,9 +257,9 @@ object Implementation {
     run(n, q, fresh(vars, ==(listToPair(vars), q) +: g:_*))
   }
 
-  def listToPair(l: List[Var]): Pair = {
+  def listToPair(l: List[Var]): Term = {
     l match {
-      case v1 :: v2 :: Nil => Pair(v1, v2)
+      case Nil => End
       case v1 :: rst => Pair(v1, listToPair(rst))
     }
   }
@@ -329,9 +329,11 @@ object Implementation {
 
 //    println(conso(x, y, Pair(Lit("a"), Pair(Lit("b"), Lit("c"))))(Map()))
 
-    println(run_star(u, appendo(Pair(Lit("1"), Pair(Lit("2"), Pair(Lit("3"), End))), Pair(Lit("4"), Pair(Lit("5"), Pair(Lit("6"), End))), u)))
+//    println(run_star(u, appendo(Pair(Lit("1"), Pair(Lit("2"), Pair(Lit("3"), End))), Pair(Lit("4"), Pair(Lit("5"), Pair(Lit("6"), End))), u)))
 
 //    println(run_star(u, appendo(Lit("1"), Lit("2"), u)))
 //    println(run(6, x, fresh(List(y, z), appendo(x, y, z))))
+    println(run(6, List(x, y, z), appendo(x, y, z)))
+//    println(run(6, List(x, y, z), appendo(y, x, z)))
   }
 }
