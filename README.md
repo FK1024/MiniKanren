@@ -1,6 +1,6 @@
 # MiniKanren
 
-This repo implements the relational programming language MiniKanren.
+This repo implements the relational programming language MiniKanren in Scala.
 
 ## Execution
 
