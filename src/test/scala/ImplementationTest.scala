@@ -13,7 +13,7 @@ class ImplementationTest extends AnyFunSuite {
     assert(walk(x, Map(y -> Lit("7"))) === x)
     assert(walk(x, Map(x -> Lit("7"))) === Lit("7"))
     assert(walk(x, Map(x -> y, y -> Lit("42"))) === Lit("42"))
-    assert(walk(x, Map(x -> Pair(y, Pair(Lit("42"), z)))) === Pair(y, Pair(Lit("42"), z)))
+    assert(walk(x, Map(x -> Pair(y, Pair(Lit("42"), Pair(z, End))))) === Pair(y, Pair(Lit("42"), Pair(z, End))))
   }
 
   test("occurs test") {
@@ -21,7 +21,7 @@ class ImplementationTest extends AnyFunSuite {
     assert(occurs(x, Pair(y, End), Map(y -> x)))
     assert(occurs(x, y, Map(y -> x)))
     assert(!occurs(x, z, Map(y -> x)))
-    assert(occurs(x, Pair(y, z), Map(y -> Pair(x, z))))
+    assert(occurs(x, Pair(y, Pair(z, End)), Map(y -> Pair(x, Pair(z, End)))))
   }
 
   test("extend substitution test") {
@@ -38,14 +38,13 @@ class ImplementationTest extends AnyFunSuite {
     assert(unify(x, Lit("7"), Map()) === Some(Map(x -> Lit("7"))))
     assert(unify(Lit("7"), x, Map()) === Some(Map(x -> Lit("7"))))
 
-    assert(unify(Pair(x, y), Pair(Lit("1"), Lit("2")), Map()) === Some(Map(x -> Lit("1"), y -> Lit("2"))))
-    assert(unify(Pair(x, y), Pair(Lit("1"), x), Map()) === Some(Map(x -> Lit("1"), y -> Lit("1"))))
-    assert(unify(x, Pair(Lit("1"), Lit("2")), Map()) === Some(Map(x -> Pair(Lit("1"), Lit("2")))))
-    assert(unify(x, Pair(Lit("2"), x), Map()) === None)
-    assert(unify(Pair(Lit("1"), Pair(x, Lit("3"))), Pair(Lit("1"), Pair(Lit("2"), y)), Map())
+    assert(unify(Pair(x, Pair(y, End)), Pair(Lit("1"), Pair(Lit("2"), End)), Map()) === Some(Map(x -> Lit("1"), y -> Lit("2"))))
+    assert(unify(Pair(x, Pair(y, End)), Pair(Lit("1"), Pair(x, End)), Map()) === Some(Map(x -> Lit("1"), y -> Lit("1"))))
+    assert(unify(x, Pair(Lit("1"), Pair(Lit("2"), End)), Map()) === Some(Map(x -> Pair(Lit("1"), Pair(Lit("2"), End)))))
+    assert(unify(x, Pair(Lit("2"), Pair(x, End)), Map()) === None)
+    assert(unify(Pair(Lit("1"), Pair(x, Pair(Lit("3"), End))), Pair(Lit("1"), Pair(Lit("2"), Pair(y, End))), Map())
       === Some(Map(x -> Lit("2"), y -> Lit("3"))))
-    assert(unify(Pair(x, y), Pair(Lit("1"), Pair(Lit("2"), Lit("2"))), Map())
-      === Some(Map(x -> Lit("1"), y -> Pair(Lit("2"),Lit("2")))))
+    assert(unify(Pair(x, Pair(y, End)), Pair(Lit("1"), Pair(Lit("2"), Pair(Lit("3"), End))), Map()) === None)
   }
 
   test("== test") {
@@ -151,7 +150,7 @@ class ImplementationTest extends AnyFunSuite {
     assert(run_star(u, disj(Implementation.==(Lit("pea"), u), Implementation.==(Lit("pod"), u))) === List(Lit("pea"), Lit("pod")))
     assert(run_star(x, fresh(List(y), conj(Implementation.==(Lit("oil"), y), Implementation.==(x, y)))) === List(Lit("oil")))
     assert(run_star(List(x, y), Implementation.==(Lit("split"), x), Implementation.==(Lit("pea"), y))
-      === List(Pair(Lit("split"), Lit("pea"))))
+      === List(Pair(Lit("split"), Pair(Lit("pea"), End))))
     assert(run_star(u, fresh(List(x, y), disj2(Implementation.==(Pair(x, y), u), Implementation.==(Pair(y, x), u))))
       === List(Pair(Lit("_0"), Lit("_1")), Pair(Lit("_0"), Lit("_1"))))
 
@@ -159,8 +158,8 @@ class ImplementationTest extends AnyFunSuite {
       conj2(Implementation.==(Lit("split"), x), Implementation.==(Lit("pea"), y)),
       conj2(Implementation.==(Lit("red"), x), Implementation.==(Lit("bean"), y)))
 
-    assert(run_star(List(x, y), myGoal) === List(Pair(Lit("split"), Lit("pea")), Pair(Lit("red"), Lit("bean"))))
-    assert(Implementation.run(1, List(x, y), myGoal) === List(Pair(Lit("split"), Lit("pea"))))
+    assert(run_star(List(x, y), myGoal) === List(Pair(Lit("split"), Pair(Lit("pea"), End)), Pair(Lit("red"), Pair(Lit("bean"), End))))
+    assert(Implementation.run(1, List(x, y), myGoal) === List(Pair(Lit("split"), Pair(Lit("pea"), End))))
   }
 
   test("conso test") {

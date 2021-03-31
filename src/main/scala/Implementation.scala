@@ -11,7 +11,7 @@ object Implementation {
     val id: Int = varCounter
     varCounter += 1
 
-    override def toString: String = name
+    override def toString: String = name + id
 
     override def equals(obj: Any): Boolean = {
       obj.isInstanceOf[Var] && obj.asInstanceOf[Var].id == this.id
@@ -254,13 +254,21 @@ object Implementation {
 
   def run(n: Option[Int], vars: List[Var], g: Goal*): List[Any] = {
     val q = Var("q")
-    run(n, q, fresh(vars, ==(listToPair(vars), q) +: g:_*))
+    run(n, q, fresh(vars, ==(listOfVarToPair(vars), q) +: g:_*))
   }
 
-  def listToPair(l: List[Var]): Term = {
+  def listOfVarToPair(l: List[Var]): Term = {
     l match {
       case Nil => End
-      case v1 :: rst => Pair(v1, listToPair(rst))
+      case v1 :: rst => Pair(v1, listOfVarToPair(rst))
+    }
+  }
+
+  def listToPairOfLit[T](l: T*): Term = {
+    l match {
+      case Seq() => End
+      case Seq(fst) => Pair(Lit(fst.toString), End)
+      case Seq(fst, rst @ _*) => Pair(Lit(fst.toString), listToPairOfLit(rst:_*))
     }
   }
 
@@ -279,8 +287,6 @@ object Implementation {
     }
     disj(res:_*)
   }
-
-
 
 
   def conso(a: Term, d: Term, p: Term): Goal = {
@@ -310,30 +316,13 @@ object Implementation {
   }
 
   def main(args: Array[String]): Unit = {
-    val u = Var("u")
-    val v = Var("v")
-    val w = Var("w")
-    val x = Var("x")
-    val y = Var("y")
-    val z = Var("z")
+    val q = Var("q")
+    // Example from the report representing the query (run* q (appendo '(1 2 3) q '(1 2 3 4 5 6))) resulting in '((4 5 6))
+    println(run_star(q, appendo(listToPairOfLit(1, 2, 3), q, listToPairOfLit(1, 2, 3, 4, 5, 6))))
 
-//    run_star(x, fail)
+    // another example, returning the List(Lit(2))
+    println(run_star(q, appendo(Pair(Lit("1"), Pair(q, Pair(Lit("3"), End))), listToPairOfLit(4, 5, 6), listToPairOfLit(1, 2, 3, 4, 5, 6))))
 
-    lazy val ones: Stream[Int] = Stream.cons(1, ones)
-    lazy val twos: Stream[Int] = Stream.cons(2, twos)
-    lazy val res = append_inf(ones, twos)
-//    println(res.toString(5))
-
-//    lazy val abc = Stream.cons("a", Stream.cons("b", Stream.cons("c", Susp(() => Empty))))
-//    abc.toString
-
-//    println(conso(x, y, Pair(Lit("a"), Pair(Lit("b"), Lit("c"))))(Map()))
-
-//    println(run_star(u, appendo(Pair(Lit("1"), Pair(Lit("2"), Pair(Lit("3"), End))), Pair(Lit("4"), Pair(Lit("5"), Pair(Lit("6"), End))), u)))
-
-//    println(run_star(u, appendo(Lit("1"), Lit("2"), u)))
-//    println(run(6, x, fresh(List(y, z), appendo(x, y, z))))
-    println(run(6, List(x, y, z), appendo(x, y, z)))
-//    println(run(6, List(x, y, z), appendo(y, x, z)))
+    // for more examples see or run the test cases
   }
 }
