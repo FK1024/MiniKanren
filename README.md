@@ -4,7 +4,7 @@ This repo implements the relational programming language MiniKanren in Scala.
 
 ## Execution
 
-Just clone this repo, and run it in IntelliJ using the scala plugin
+Just clone this repo and run it in IntelliJ using the scala plugin
 
 ## Versions
 
